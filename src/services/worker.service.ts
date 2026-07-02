@@ -73,9 +73,13 @@ async function pollAndProcessJob() {
         [nextStatus, errMessage, nextRunAt, job.id]
       );
     }
-  } catch (err) {
+  } catch (err: any) {
     await client.query('ROLLBACK');
-    console.error(`[Worker ${WORKER_ID}] Concurrency error in worker transaction:`, err);
+    if (err.code === '42P01') {
+      console.warn(`[Worker ${WORKER_ID}] Database tables not initialized yet. Please run migrations: npm run migrate`);
+    } else {
+      console.error(`[Worker ${WORKER_ID}] Concurrency error in worker transaction:`, err);
+    }
   } finally {
     client.release();
   }
