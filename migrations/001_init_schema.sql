@@ -50,7 +50,7 @@ END $$;
 -- ============================================================================
 
 -- 1. User Profiles (Primary Auth relation. Uses Firebase UID instead of UUID)
-CREATE TABLE user_profiles (
+CREATE TABLE IF NOT EXISTS user_profiles (
     id VARCHAR(128) PRIMARY KEY,
     email TEXT NOT NULL UNIQUE,
     password_hash TEXT, -- Nullable for social sign-in users
@@ -68,7 +68,7 @@ CREATE TABLE user_profiles (
 );
 
 -- 2. Dancer Profiles
-CREATE TABLE dancer_profiles (
+CREATE TABLE IF NOT EXISTS dancer_profiles (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id VARCHAR(128) NOT NULL UNIQUE REFERENCES user_profiles(id) ON DELETE CASCADE,
     stage_name TEXT NOT NULL,
@@ -88,7 +88,7 @@ CREATE TABLE dancer_profiles (
 );
 
 -- 3. Battles (Events)
-CREATE TABLE battles (
+CREATE TABLE IF NOT EXISTS battles (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     title TEXT NOT NULL,
     category TEXT NOT NULL,
@@ -115,7 +115,7 @@ CREATE TABLE battles (
 );
 
 -- 4. Battle Entries (Registrations)
-CREATE TABLE battle_entries (
+CREATE TABLE IF NOT EXISTS battle_entries (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     battle_id UUID NOT NULL REFERENCES battles(id) ON DELETE CASCADE,
     dancer_id UUID NOT NULL REFERENCES dancer_profiles(id) ON DELETE CASCADE,
@@ -136,7 +136,7 @@ CREATE TABLE battle_entries (
 );
 
 -- 5. Blog Categories
-CREATE TABLE blog_categories (
+CREATE TABLE IF NOT EXISTS blog_categories (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name TEXT NOT NULL UNIQUE,
     slug TEXT NOT NULL UNIQUE,
@@ -147,7 +147,7 @@ CREATE TABLE blog_categories (
 );
 
 -- 6. Blog Authors
-CREATE TABLE blog_authors (
+CREATE TABLE IF NOT EXISTS blog_authors (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id VARCHAR(128) REFERENCES user_profiles(id) ON DELETE SET NULL,
     name TEXT NOT NULL,
@@ -162,7 +162,7 @@ CREATE TABLE blog_authors (
 );
 
 -- 7. Blog Posts
-CREATE TABLE blog_posts (
+CREATE TABLE IF NOT EXISTS blog_posts (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     title TEXT NOT NULL,
     slug TEXT NOT NULL UNIQUE,
@@ -182,7 +182,7 @@ CREATE TABLE blog_posts (
 );
 
 -- 8. Orders
-CREATE TABLE orders (
+CREATE TABLE IF NOT EXISTS orders (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     order_id TEXT NOT NULL UNIQUE,
     user_id VARCHAR(128) NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
@@ -203,7 +203,7 @@ CREATE TABLE orders (
 );
 
 -- 9. Payment Entries
-CREATE TABLE payment_entries (
+CREATE TABLE IF NOT EXISTS payment_entries (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     order_id UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
     payment_method payment_method DEFAULT 'paytm'::payment_method,
@@ -223,7 +223,7 @@ CREATE TABLE payment_entries (
 );
 
 -- 10. Gallery Images
-CREATE TABLE gallery_images (
+CREATE TABLE IF NOT EXISTS gallery_images (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     url TEXT NOT NULL,
     public_id TEXT,
@@ -236,7 +236,7 @@ CREATE TABLE gallery_images (
 );
 
 -- 11. Blog Editorial Comments
-CREATE TABLE blog_editorial_comments (
+CREATE TABLE IF NOT EXISTS blog_editorial_comments (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     post_id UUID NOT NULL REFERENCES blog_posts(id) ON DELETE CASCADE,
     author_id VARCHAR(128) NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
@@ -248,7 +248,7 @@ CREATE TABLE blog_editorial_comments (
 );
 
 -- 12. Refresh Tokens (Used for JWT Refresh Token Rotation)
-CREATE TABLE refresh_tokens (
+CREATE TABLE IF NOT EXISTS refresh_tokens (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id VARCHAR(128) NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
     token TEXT NOT NULL UNIQUE,
@@ -260,7 +260,7 @@ CREATE TABLE refresh_tokens (
 );
 
 -- 13. User FCM Device Tokens
-CREATE TABLE user_fcm_tokens (
+CREATE TABLE IF NOT EXISTS user_fcm_tokens (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id VARCHAR(128) NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
     token TEXT NOT NULL,
@@ -271,7 +271,7 @@ CREATE TABLE user_fcm_tokens (
 );
 
 -- 14. Job Queue (Postgres-Backed Task Queue)
-CREATE TABLE job_queue (
+CREATE TABLE IF NOT EXISTS job_queue (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     job_type TEXT NOT NULL,
     payload JSONB DEFAULT '{}'::jsonb,
