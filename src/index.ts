@@ -35,11 +35,22 @@ async function bootstrap() {
 
     // Register CORS
     await fastify.register(cors, {
-      origin: [
-        'http://localhost:3000',
-        'http://localhost:3001',
-        'http://127.0.0.1:3000',
-      ],
+      origin: (origin, cb) => {
+        if (!origin) {
+          cb(null, true);
+          return;
+        }
+        try {
+          const url = new URL(origin);
+          if (url.hostname === 'localhost' || url.hostname === '127.0.0.1') {
+            cb(null, true);
+            return;
+          }
+        } catch (e) {
+          // Ignore invalid URL formats
+        }
+        cb(new Error('Not allowed by CORS'), false);
+      },
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     });
