@@ -65,8 +65,14 @@ export const pool = new Pool({
   connectionTimeoutMillis: 5000,
 });
 
+pool.on('connect', (client) => {
+  client.on('error', (err) => {
+    console.error('Unexpected error on active database client:', err.message || err);
+  });
+});
+
 pool.on('error', (err) => {
-  console.error('Unexpected error on idle PostgreSQL client:', err);
+  console.error('Unexpected error on idle database client:', err.message || err);
 });
 
 export const query = (text: string, params?: any[]) => {
