@@ -9,18 +9,41 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 -- ============================================================================
--- ENUM TYPES
+-- ENUM TYPES (Idempotent creation)
 -- ============================================================================
-CREATE TYPE user_role AS ENUM ('admin', 'dancer', 'judge', 'organizer', 'blogger', 'chief_editorial');
-CREATE TYPE gender_type AS ENUM ('male', 'female', 'non_binary', 'prefer_not_to_say');
-CREATE TYPE skill_level AS ENUM ('beginner', 'intermediate', 'advanced', 'professional');
-CREATE TYPE battle_status AS ENUM ('upcoming', 'live', 'completed', 'cancelled', 'pending');
-CREATE TYPE entry_status AS ENUM ('pending', 'approved', 'rejected', 'waitlisted');
-CREATE TYPE blog_status AS ENUM ('draft', 'published', 'archived');
-CREATE TYPE order_status AS ENUM ('pending', 'completed', 'failed', 'refunded', 'cancelled');
-CREATE TYPE payment_status AS ENUM ('initiated', 'success', 'failed', 'pending');
-CREATE TYPE payment_method AS ENUM ('paytm', 'cash', 'other');
-CREATE TYPE job_status AS ENUM ('pending', 'processing', 'completed', 'failed');
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'user_role') THEN
+        CREATE TYPE user_role AS ENUM ('admin', 'dancer', 'judge', 'organizer', 'blogger', 'chief_editorial');
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'gender_type') THEN
+        CREATE TYPE gender_type AS ENUM ('male', 'female', 'non_binary', 'prefer_not_to_say');
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'skill_level') THEN
+        CREATE TYPE skill_level AS ENUM ('beginner', 'intermediate', 'advanced', 'professional');
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'battle_status') THEN
+        CREATE TYPE battle_status AS ENUM ('upcoming', 'live', 'completed', 'cancelled', 'pending');
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'entry_status') THEN
+        CREATE TYPE entry_status AS ENUM ('pending', 'approved', 'rejected', 'waitlisted');
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'blog_status') THEN
+        CREATE TYPE blog_status AS ENUM ('draft', 'published', 'archived');
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'order_status') THEN
+        CREATE TYPE order_status AS ENUM ('pending', 'completed', 'failed', 'refunded', 'cancelled');
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'payment_status') THEN
+        CREATE TYPE payment_status AS ENUM ('initiated', 'success', 'failed', 'pending');
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'payment_method') THEN
+        CREATE TYPE payment_method AS ENUM ('paytm', 'cash', 'other');
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'job_status') THEN
+        CREATE TYPE job_status AS ENUM ('pending', 'processing', 'completed', 'failed');
+    END IF;
+END $$;
 
 -- ============================================================================
 -- CORE TABLES
@@ -360,18 +383,38 @@ $$ LANGUAGE plpgsql;
 -- ============================================================================
 
 -- Triggers for auto-updating updated_at columns
+DROP TRIGGER IF EXISTS update_user_profiles_updated_at ON user_profiles;
 CREATE TRIGGER update_user_profiles_updated_at BEFORE UPDATE ON user_profiles FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_dancer_profiles_updated_at ON dancer_profiles;
 CREATE TRIGGER update_dancer_profiles_updated_at BEFORE UPDATE ON dancer_profiles FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_battles_updated_at ON battles;
 CREATE TRIGGER update_battles_updated_at BEFORE UPDATE ON battles FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_battle_entries_updated_at ON battle_entries;
 CREATE TRIGGER update_battle_entries_updated_at BEFORE UPDATE ON battle_entries FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_blog_posts_updated_at ON blog_posts;
 CREATE TRIGGER update_blog_posts_updated_at BEFORE UPDATE ON blog_posts FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_orders_updated_at ON orders;
 CREATE TRIGGER update_orders_updated_at BEFORE UPDATE ON orders FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_blog_editorial_comments_updated_at ON blog_editorial_comments;
 CREATE TRIGGER update_blog_editorial_comments_updated_at BEFORE UPDATE ON blog_editorial_comments FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_user_fcm_tokens_updated_at ON user_fcm_tokens;
 CREATE TRIGGER update_user_fcm_tokens_updated_at BEFORE UPDATE ON user_fcm_tokens FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_job_queue_updated_at ON job_queue;
 CREATE TRIGGER update_job_queue_updated_at BEFORE UPDATE ON job_queue FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- Triggers for relational counting
+DROP TRIGGER IF EXISTS trg_update_battle_participants_count ON battle_entries;
 CREATE TRIGGER trg_update_battle_participants_count AFTER INSERT OR UPDATE OR DELETE ON battle_entries FOR EACH ROW EXECUTE FUNCTION update_battle_participants_count();
+
+DROP TRIGGER IF EXISTS trg_update_category_post_count ON blog_posts;
 CREATE TRIGGER trg_update_category_post_count AFTER INSERT OR UPDATE OR DELETE ON blog_posts FOR EACH ROW EXECUTE FUNCTION update_category_post_count();
 
 -- ============================================================================
@@ -381,7 +424,8 @@ INSERT INTO "user_profiles" ("id", "email", "first_name", "last_name", "phone", 
 ('0de6dca9-de7e-4102-83fd-0806bd73fc18', 'manathoor06@gmail.com', 'ok', 'ok', null, null, 'male', 'india', null, ARRAY['admin'::user_role], true, '2026-03-07 08:49:17.482107+00', '2026-03-12 15:53:40.547806+00'), 
 ('394d55a9-d3a3-43e5-ad00-55fc99cf6bef', 'anitajrachel2104@gmail.com', 'Anita', 'Rachel', null, null, 'female', null, null, ARRAY['blogger'::user_role], true, '2026-03-24 09:31:21+00', '2026-03-24 09:37:36.805964+00'), 
 ('e52ad498-e3a2-4657-b95b-20dcddca8962', 'Sonamwadkar89@gmail.com', 'Sonam', 'Wadkar', null, '2000-03-29', 'female', null, null, ARRAY['chief_editorial'::user_role], true, '2026-03-29 08:47:44+00', '2026-03-29 08:47:46+00'), 
-('e5a96dc3-1d76-45a7-98ff-6f32fce6b286', 'manathoorweb@gmail.com', 'Manathoor', 'web', null, null, null, null, null, ARRAY['admin'::user_role], true, '2026-03-07 10:00:00.165334+00', '2026-06-30 06:19:46.530215+00');
+('e5a96dc3-1d76-45a7-98ff-6f32fce6b286', 'manathoorweb@gmail.com', 'Manathoor', 'web', null, null, null, null, null, ARRAY['admin'::user_role], true, '2026-03-07 10:00:00.165334+00', '2026-06-30 06:19:46.530215+00')
+ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO "battles" (
   "id", "title", "category", "battle_date", "location", "image_url", "image_alt", 
@@ -393,7 +437,8 @@ INSERT INTO "battles" (
   'https://res.cloudinary.com/do6moetbe/image/upload/v1772875019/kod/battles/helhrqffbyiqeocyrive.jpg', '', 
   0, 50, '20000', 'completed', '', '', '1v1', null, '2026-03-07 08:57:14.66957+00', '2026-03-07 08:57:14.66957+00', 
   '0de6dca9-de7e-4102-83fd-0806bd73fc18', null, 800.00, 300.00, 'India', '18:00'
-);
+)
+ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO "gallery_images" ("id", "url", "public_id", "title", "event_id", "media_type", "uploaded_by", "created_at", "metadata") VALUES 
 ('0d1ce561-71a1-4036-bb80-c8ba978be861', 'https://res.cloudinary.com/do6moetbe/image/upload/v1772875408/kod/gallery/fkskufsqbelx97tt6zgo.jpg', 'kod/gallery/fkskufsqbelx97tt6zgo', '_RIT1150', '5c5dd774-b8d4-4147-842d-e86090c945b7', 'photo', '0de6dca9-de7e-4102-83fd-0806bd73fc18', '2026-03-07 09:23:54.449632+00', '{}'::jsonb), 
@@ -415,6 +460,7 @@ INSERT INTO "gallery_images" ("id", "url", "public_id", "title", "event_id", "me
 ('dc28ba1b-6c52-46ff-8bcd-bbf0b46a2af1', 'https://res.cloudinary.com/do6moetbe/image/upload/v1772875579/kod/gallery/l2vu2bnjoftmaxiedds1.jpg', 'kod/gallery/l2vu2bnjoftmaxiedds1', '_RIT1098', '5c5dd774-b8d4-4147-842d-e86090c945b7', 'photo', '0de6dca9-de7e-4102-83fd-0806bd73fc18', '2026-03-07 09:27:02.194689+00', '{}'::jsonb), 
 ('dd0f872a-ccd5-433f-ac2a-eea2e1b062bc', 'https://res.cloudinary.com/do6moetbe/image/upload/v1772875419/kod/gallery/mphjb4bc0mqtqrmg8pxg.jpg', 'kod/gallery/mphjb4bc0mqtqrmg8pxg', '_RIT1071', '5c5dd774-b8d4-4147-842d-e86090c945b7', 'photo', '0de6dca9-de7e-4102-83fd-0806bd73fc18', '2026-03-07 09:23:54.449632+00', '{}'::jsonb), 
 ('f4ac7b2d-5b8a-48b3-9159-437a067629ea', 'https://res.cloudinary.com/do6moetbe/image/upload/v1772875598/kod/gallery/pkztsa0flnmuq01ztsez.jpg', 'kod/gallery/pkztsa0flnmuq01ztsez', '_RIT0803', '5c5dd774-b8d4-4147-842d-e86090c945b7', 'photo', '0de6dca9-de7e-4102-83fd-0806bd73fc18', '2026-03-07 09:27:02.194689+00', '{}'::jsonb), 
-('f574e0dc-06b9-477a-bb70-429a5a64951c', 'https://res.cloudinary.com/do6moetbe/image/upload/v1772875405/kod/gallery/cbo9ycum21ucralfgpoi.jpg', 'kod/gallery/cbo9ycum21ucralfgpoi', '_RIT1196', '5c5dd774-b8d4-4147-842d-e86090c945b7', 'photo', '0de6dca9-de7e-4102-83fd-0806bd73fc18', '2026-03-07 09:23:54.449632+00', '{}'::jsonb);
+('f574e0dc-06b9-477a-bb70-429a5a64951c', 'https://res.cloudinary.com/do6moetbe/image/upload/v1772875405/kod/gallery/cbo9ycum21ucralfgpoi.jpg', 'kod/gallery/cbo9ycum21ucralfgpoi', '_RIT1196', '5c5dd774-b8d4-4147-842d-e86090c945b7', 'photo', '0de6dca9-de7e-4102-83fd-0806bd73fc18', '2026-03-07 09:23:54.449632+00', '{}'::jsonb)
+ON CONFLICT (id) DO NOTHING;
 
 
