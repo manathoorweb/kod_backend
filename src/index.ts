@@ -18,6 +18,7 @@ import { authRoutes } from './routes/auth.routes';
 import { battleRoutes } from './routes/battle.routes';
 import { registrationRoutes } from './routes/registration.routes';
 import { dashboardRoutes } from './routes/dashboard.routes';
+import { startWorker, stopWorker } from './services/worker.service';
 
 const fastify = Fastify({
   logger: true,
@@ -62,9 +63,14 @@ async function bootstrap() {
 
     // Graceful Shutdown hooks
     fastify.addHook('onClose', async (instance) => {
+      fastify.log.info('Stopping database background worker...');
+      stopWorker();
       fastify.log.info('Closing database pool connection...');
       await pool.end();
     });
+
+    // Start background database worker
+    startWorker();
 
     await fastify.listen({ port: PORT, host: '0.0.0.0' });
     fastify.log.info(`Fastify server successfully listening on port ${PORT}`);

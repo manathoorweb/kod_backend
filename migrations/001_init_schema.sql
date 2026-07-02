@@ -20,6 +20,7 @@ CREATE TYPE blog_status AS ENUM ('draft', 'published', 'archived');
 CREATE TYPE order_status AS ENUM ('pending', 'completed', 'failed', 'refunded', 'cancelled');
 CREATE TYPE payment_status AS ENUM ('initiated', 'success', 'failed', 'pending');
 CREATE TYPE payment_method AS ENUM ('paytm', 'cash', 'other');
+CREATE TYPE job_status AS ENUM ('pending', 'processing', 'completed', 'failed');
 
 -- ============================================================================
 -- CORE TABLES
@@ -235,11 +236,41 @@ CREATE TABLE refresh_tokens (
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
+-- 13. User FCM Device Tokens
+CREATE TABLE user_fcm_tokens (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id VARCHAR(128) NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
+    token TEXT NOT NULL,
+    device_type TEXT, -- 'web', 'ios', 'android'
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(user_id, token)
+);
+
+-- 14. Job Queue (Postgres-Backed Task Queue)
+CREATE TABLE job_queue (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    job_type TEXT NOT NULL,
+    payload JSONB DEFAULT '{}'::jsonb,
+    status job_status DEFAULT 'pending'::job_status,
+    error_message TEXT,
+    attempts INTEGER DEFAULT 0,
+    max_attempts INTEGER DEFAULT 3,
+    run_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    locked_at TIMESTAMPTZ,
+    locked_by TEXT,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    completed_at TIMESTAMPTZ
+);
+
 -- ============================================================================
 -- INDEXES
 -- ============================================================================
 CREATE INDEX idx_user_profiles_email ON user_profiles(email);
 CREATE INDEX idx_refresh_tokens_token ON refresh_tokens(token);
+CREATE INDEX idx_user_fcm_tokens_user ON user_fcm_tokens(user_id);
+CREATE INDEX idx_job_queue_status_run ON job_queue(status, run_at);
 CREATE INDEX idx_dancer_profiles_user_id ON dancer_profiles(user_id);
 CREATE INDEX idx_dancer_profiles_skill_level ON dancer_profiles(skill_level);
 CREATE INDEX idx_battles_status ON battles(status);
@@ -336,6 +367,8 @@ CREATE TRIGGER update_battle_entries_updated_at BEFORE UPDATE ON battle_entries 
 CREATE TRIGGER update_blog_posts_updated_at BEFORE UPDATE ON blog_posts FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_orders_updated_at BEFORE UPDATE ON orders FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_blog_editorial_comments_updated_at BEFORE UPDATE ON blog_editorial_comments FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_user_fcm_tokens_updated_at BEFORE UPDATE ON user_fcm_tokens FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_job_queue_updated_at BEFORE UPDATE ON job_queue FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- Triggers for relational counting
 CREATE TRIGGER trg_update_battle_participants_count AFTER INSERT OR UPDATE OR DELETE ON battle_entries FOR EACH ROW EXECUTE FUNCTION update_battle_participants_count();
