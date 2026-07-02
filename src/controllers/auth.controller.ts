@@ -287,3 +287,21 @@ export async function logout(request: FastifyRequest, reply: FastifyReply) {
   reply.clearCookie('refreshToken', { path: '/api/auth' });
   return reply.send({ message: 'Logged out successfully' });
 }
+
+export async function getMe(request: FastifyRequest, reply: FastifyReply) {
+  const user = request.user;
+  if (!user) {
+    return reply.status(401).send({ error: 'Unauthorized' });
+  }
+
+  try {
+    const userRes = await pool.query('SELECT * FROM user_profiles WHERE id = $1', [user.userId]);
+    if (userRes.rows.length === 0) {
+      return reply.status(404).send({ error: 'User profile not found' });
+    }
+    return reply.send(userRes.rows[0]);
+  } catch (err: any) {
+    request.log.error(err);
+    return reply.status(500).send({ error: 'Failed to retrieve user profile' });
+  }
+}
