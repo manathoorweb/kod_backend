@@ -5,6 +5,15 @@ import { pool } from '../config/db';
 import { signAccessToken, signRefreshToken, verifyRefreshToken, JWTPayload } from '../config/jwt';
 import admin from '../config/firebase';
 
+export function parseRoles(roles: any): string[] {
+  if (!roles) return [];
+  if (Array.isArray(roles)) return roles;
+  if (typeof roles === 'string') {
+    return roles.replace(/[{}]/g, '').split(',').map((s: string) => s.trim()).filter(Boolean);
+  }
+  return [];
+}
+
 interface RegisterBody {
   email: string;
   password?: string;
@@ -107,7 +116,8 @@ export async function login(request: FastifyRequest, reply: FastifyReply) {
       return reply.status(401).send({ error: 'Invalid email or password' });
     }
 
-    const payload: JWTPayload = { userId: user.id, email: user.email, roles: user.roles };
+    const userRoles = parseRoles(user.roles);
+    const payload: JWTPayload = { userId: user.id, email: user.email, roles: userRoles };
     const accessToken = signAccessToken(payload);
     const refreshToken = signRefreshToken(payload);
 
@@ -128,7 +138,7 @@ export async function login(request: FastifyRequest, reply: FastifyReply) {
 
     return reply.send({
       accessToken,
-      user: { id: user.id, email: user.email, firstName: user.first_name, roles: user.roles }
+      user: { id: user.id, email: user.email, firstName: user.first_name, roles: userRoles }
     });
   } catch (err: any) {
     request.log.error(err);
@@ -171,7 +181,8 @@ export async function firebaseLogin(request: FastifyRequest, reply: FastifyReply
       user = userRes.rows[0];
     }
 
-    const payload: JWTPayload = { userId: user.id, email: user.email, roles: user.roles };
+    const userRoles = parseRoles(user.roles);
+    const payload: JWTPayload = { userId: user.id, email: user.email, roles: userRoles };
     const accessToken = signAccessToken(payload);
     const refreshToken = signRefreshToken(payload);
 
@@ -192,7 +203,7 @@ export async function firebaseLogin(request: FastifyRequest, reply: FastifyReply
 
     return reply.send({
       accessToken,
-      user: { id: user.id, email: user.email, firstName: user.first_name, roles: user.roles }
+      user: { id: user.id, email: user.email, firstName: user.first_name, roles: userRoles }
     });
   } catch (err: any) {
     request.log.error(err);
@@ -299,7 +310,9 @@ export async function getMe(request: FastifyRequest, reply: FastifyReply) {
     if (userRes.rows.length === 0) {
       return reply.status(404).send({ error: 'User profile not found' });
     }
-    return reply.send(userRes.rows[0]);
+    const profile = userRes.rows[0];
+    profile.roles = parseRoles(profile.roles);
+    return reply.send(profile);
   } catch (err: any) {
     request.log.error(err);
     return reply.status(500).send({ error: 'Failed to retrieve user profile' });
