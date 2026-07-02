@@ -290,30 +290,30 @@ CREATE TABLE IF NOT EXISTS job_queue (
 -- ============================================================================
 -- INDEXES
 -- ============================================================================
-CREATE INDEX idx_user_profiles_email ON user_profiles(email);
-CREATE INDEX idx_refresh_tokens_token ON refresh_tokens(token);
-CREATE INDEX idx_user_fcm_tokens_user ON user_fcm_tokens(user_id);
-CREATE INDEX idx_job_queue_status_run ON job_queue(status, run_at);
-CREATE INDEX idx_dancer_profiles_user_id ON dancer_profiles(user_id);
-CREATE INDEX idx_dancer_profiles_skill_level ON dancer_profiles(skill_level);
-CREATE INDEX idx_battles_status ON battles(status);
-CREATE INDEX idx_battles_battle_date ON battles(battle_date);
-CREATE INDEX idx_battle_entries_battle_id ON battle_entries(battle_id);
-CREATE INDEX idx_battle_entries_dancer_id ON battle_entries(dancer_id);
-CREATE INDEX idx_battle_entries_status ON battle_entries(entry_status);
-CREATE INDEX idx_blog_posts_category_id ON blog_posts(category_id);
-CREATE INDEX idx_blog_posts_author_id ON blog_posts(author_id);
-CREATE INDEX idx_blog_posts_status ON blog_posts(status);
-CREATE INDEX idx_blog_posts_featured ON blog_posts(featured);
-CREATE INDEX idx_blog_posts_published_at ON blog_posts(published_at);
-CREATE INDEX idx_orders_user_id ON orders(user_id);
-CREATE INDEX idx_orders_order_id ON orders(order_id);
-CREATE INDEX idx_orders_status ON orders(status);
-CREATE INDEX idx_orders_created_at ON orders(created_at DESC);
-CREATE INDEX idx_payment_entries_order_id ON payment_entries(order_id);
-CREATE INDEX idx_payment_entries_transaction_id ON payment_entries(transaction_id);
-CREATE INDEX idx_payment_entries_status ON payment_entries(status);
-CREATE INDEX idx_payment_entries_gateway_order_id ON payment_entries(gateway_order_id);
+CREATE INDEX IF NOT EXISTS idx_user_profiles_email ON user_profiles(email);
+CREATE INDEX IF NOT EXISTS idx_refresh_tokens_token ON refresh_tokens(token);
+CREATE INDEX IF NOT EXISTS idx_user_fcm_tokens_user ON user_fcm_tokens(user_id);
+CREATE INDEX IF NOT EXISTS idx_job_queue_status_run ON job_queue(status, run_at);
+CREATE INDEX IF NOT EXISTS idx_dancer_profiles_user_id ON dancer_profiles(user_id);
+CREATE INDEX IF NOT EXISTS idx_dancer_profiles_skill_level ON dancer_profiles(skill_level);
+CREATE INDEX IF NOT EXISTS idx_battles_status ON battles(status);
+CREATE INDEX IF NOT EXISTS idx_battles_battle_date ON battles(battle_date);
+CREATE INDEX IF NOT EXISTS idx_battle_entries_battle_id ON battle_entries(battle_id);
+CREATE INDEX IF NOT EXISTS idx_battle_entries_dancer_id ON battle_entries(dancer_id);
+CREATE INDEX IF NOT EXISTS idx_battle_entries_status ON battle_entries(entry_status);
+CREATE INDEX IF NOT EXISTS idx_blog_posts_category_id ON blog_posts(category_id);
+CREATE INDEX IF NOT EXISTS idx_blog_posts_author_id ON blog_posts(author_id);
+CREATE INDEX IF NOT EXISTS idx_blog_posts_status ON blog_posts(status);
+CREATE INDEX IF NOT EXISTS idx_blog_posts_featured ON blog_posts(featured);
+CREATE INDEX IF NOT EXISTS idx_blog_posts_published_at ON blog_posts(published_at);
+CREATE INDEX IF NOT EXISTS idx_orders_user_id ON orders(user_id);
+CREATE INDEX IF NOT EXISTS idx_orders_order_id ON orders(order_id);
+CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
+CREATE INDEX IF NOT EXISTS idx_orders_created_at ON orders(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_payment_entries_order_id ON payment_entries(order_id);
+CREATE INDEX IF NOT EXISTS idx_payment_entries_transaction_id ON payment_entries(transaction_id);
+CREATE INDEX IF NOT EXISTS idx_payment_entries_status ON payment_entries(status);
+CREATE INDEX IF NOT EXISTS idx_payment_entries_gateway_order_id ON payment_entries(gateway_order_id);
 
 -- ============================================================================
 -- TRIGGER FUNCTIONS
