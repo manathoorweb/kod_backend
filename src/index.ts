@@ -18,6 +18,7 @@ import { authRoutes } from './routes/auth.routes';
 import { battleRoutes } from './routes/battle.routes';
 import { registrationRoutes } from './routes/registration.routes';
 import { dashboardRoutes } from './routes/dashboard.routes';
+import { blogRoutes } from './routes/blog.routes';
 import { startWorker, stopWorker } from './services/worker.service';
 
 const fastify = Fastify({
@@ -63,6 +64,7 @@ async function bootstrap() {
     await fastify.register(battleRoutes, { prefix: '/api/battles' });
     await fastify.register(registrationRoutes, { prefix: '/api/registrations' });
     await fastify.register(dashboardRoutes, { prefix: '/api/dashboard' });
+    await fastify.register(blogRoutes, { prefix: '/api/blog' });
 
     // Graceful Shutdown hooks
     fastify.addHook('onClose', async (instance) => {
