@@ -32,7 +32,7 @@ export async function listBlogPosts(request: FastifyRequest, reply: FastifyReply
     let queryText = `
       SELECT p.*, 
              json_build_object('id', c.id, 'name', c.name, 'slug', c.slug) as category,
-             json_build_object('id', a.id, 'name', a.name, 'avatar_url', a.avatar_url) as author
+             json_build_object('id', a.id, 'name', a.name, 'avatar_url', a.avatar) as author
       FROM blog_posts p
       LEFT JOIN blog_categories c ON p.category_id = c.id
       LEFT JOIN blog_authors a ON p.author_id = a.id
@@ -75,7 +75,7 @@ export async function getBlogPostBySlug(request: FastifyRequest, reply: FastifyR
     const queryText = `
       SELECT p.*, 
              json_build_object('id', c.id, 'name', c.name, 'slug', c.slug) as category,
-             json_build_object('id', a.id, 'name', a.name, 'avatar_url', a.avatar_url, 'bio', a.bio) as author
+             json_build_object('id', a.id, 'name', a.name, 'avatar_url', a.avatar, 'bio', a.bio) as author
       FROM blog_posts p
       LEFT JOIN blog_categories c ON p.category_id = c.id
       LEFT JOIN blog_authors a ON p.author_id = a.id
@@ -102,7 +102,7 @@ export async function getFeaturedBlogPost(request: FastifyRequest, reply: Fastif
     const queryText = `
       SELECT p.*, 
              json_build_object('id', c.id, 'name', c.name, 'slug', c.slug) as category,
-             json_build_object('id', a.id, 'name', a.name, 'avatar_url', a.avatar_url) as author
+             json_build_object('id', a.id, 'name', a.name, 'avatar_url', a.avatar) as author
       FROM blog_posts p
       LEFT JOIN blog_categories c ON p.category_id = c.id
       LEFT JOIN blog_authors a ON p.author_id = a.id
