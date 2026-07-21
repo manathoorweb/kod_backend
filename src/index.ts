@@ -13,19 +13,23 @@ if (fs.existsSync(envPath)) {
   dotenv.config();
 }
 
-import { pool } from './config/db';
-import { authRoutes } from './routes/auth.routes';
-import { battleRoutes } from './routes/battle.routes';
-import { registrationRoutes } from './routes/registration.routes';
-import { dashboardRoutes } from './routes/dashboard.routes';
-import { blogRoutes } from './routes/blog.routes';
-import { startWorker, stopWorker } from './services/worker.service';
+import { pool, dbStorage } from './config/db.js';
+import { authRoutes } from './routes/auth.routes.js';
+import { battleRoutes } from './routes/battle.routes.js';
+import { registrationRoutes } from './routes/registration.routes.js';
+import { dashboardRoutes } from './routes/dashboard.routes.js';
+import { blogRoutes } from './routes/blog.routes.js';
+import { reviewRoutes } from './routes/review.routes.js';
+import { programRoutes } from './routes/program.routes.js';
+import { incompleteOrdersRoutes } from './routes/incomplete-orders.routes.js';
+import { checkoutRoutes } from './routes/checkout.routes.js';
+import { startWorker, stopWorker } from './services/worker.service.js';
 
 const fastify = Fastify({
   logger: true,
 });
 
-const PORT = parseInt(process.env.PORT || '4029', 10);
+const PORT = parseInt(process.env.PORT || '8787', 10);
 
 async function bootstrap() {
   try {
@@ -39,13 +43,32 @@ async function bootstrap() {
       origin: process.env.NODE_ENV === 'development'
         ? true
         : [
-            'http://localhost:3000',
-            'http://localhost:3001',
-            'http://localhost:4028',
-            'http://127.0.0.1:3000',
-          ],
+          'http://localhost:3000',
+          'http://localhost:3001',
+          'http://localhost:4028',
+          'http://127.0.0.1:3000',
+          'https://apiback.kodindia.com'
+        ],
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    });
+
+    // Database request connection pool context hooks
+    fastify.addHook('preHandler', (request, reply, done) => {
+      pool.connect().then((client) => {
+        (request as any).dbClient = client;
+        dbStorage.run(client, () => {
+          done();
+        });
+      }).catch(done);
+    });
+
+    fastify.addHook('onResponse', (request, reply, done) => {
+      const client = (request as any).dbClient;
+      if (client && typeof client.release === 'function') {
+        client.release();
+      }
+      done();
     });
 
     // Healthcheck endpoint
@@ -65,6 +88,11 @@ async function bootstrap() {
     await fastify.register(registrationRoutes, { prefix: '/api/registrations' });
     await fastify.register(dashboardRoutes, { prefix: '/api/dashboard' });
     await fastify.register(blogRoutes, { prefix: '/api/blog' });
+    await fastify.register(reviewRoutes, { prefix: '/api/client' });
+    await fastify.register(programRoutes, { prefix: '/api/programs' });
+    await fastify.register(incompleteOrdersRoutes, { prefix: '/api/incomplete-orders' });
+    await fastify.register(checkoutRoutes, { prefix: '/api/payment' });
+    await fastify.register(checkoutRoutes, { prefix: '/api/checkout' });
 
     // Graceful Shutdown hooks
     fastify.addHook('onClose', async (instance) => {
@@ -86,3 +114,4 @@ async function bootstrap() {
 }
 
 bootstrap();
+// trigger restart

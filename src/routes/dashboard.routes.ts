@@ -7,7 +7,7 @@ import {
   updateRegistrationStatus,
 } from '../controllers/dashboard.controller';
 import { saveToken, sendAdminPushNotification } from '../controllers/notification.controller';
-import { authenticate, requireRoles } from '../middleware/auth';
+import { authenticate, requireRoles } from '../middleware/auth.middleware.js';
 
 export async function dashboardRoutes(fastify: FastifyInstance) {
   const isAuthorizedHost = [authenticate, requireRoles(['admin', 'organizer'])];

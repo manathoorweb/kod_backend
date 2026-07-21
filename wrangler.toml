@@ -1,0 +1,40 @@
+name = "kod-backend"
+main = "src/index.ts"
+compatibility_date = "2026-05-03"
+compatibility_flags = [ "nodejs_compat" ]
+
+[vars]
+NODE_ENV = "production"
+DB_SSL_REJECT_UNAUTHORIZED = "false"
+FIREBASE_PROJECT_ID = "kodindia-c1ba1"
+FIREBASE_CLIENT_EMAIL = "firebase-adminsdk-fbsvc@kodindia-c1ba1.iam.gserviceaccount.com"
+GOOGLE_CLIENT_ID = "700617725546-6h2l92tigrb9hn3512sps4a3gml9s0ph.apps.googleusercontent.com"
+
+[observability.logs]
+enabled = true
+invocation_logs = true
+
+[observability.traces]
+enabled = false
+
+[[hyperdrive]]
+binding = "HYPERDRIVE"
+id = "a90981ff38384ba18366f282fb7a5662"
+# localConnectionString is configured via CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE in .dev.vars
+[observability]
+enabled = false
+head_sampling_rate = 1
+
+[observability.logs]
+enabled = true
+head_sampling_rate = 1
+persist = true
+invocation_logs = true
+
+[observability.traces]
+enabled = false
+persist = true
+head_sampling_rate = 1
+
+
+

@@ -1,6 +1,6 @@
 import { FastifyInstance } from 'fastify';
-import { register, login, firebaseLogin, refresh, logout, getMe } from '../controllers/auth.controller';
-import { authenticate } from '../middleware/auth';
+import { register, login, firebaseLogin, refresh, logout, getMe, updatePhoneNumber } from '../controllers/auth.controller.js';
+import { authenticate } from '../middleware/auth.middleware.js';
 
 export async function authRoutes(fastify: FastifyInstance) {
   fastify.post('/register', register);
@@ -9,4 +9,5 @@ export async function authRoutes(fastify: FastifyInstance) {
   fastify.post('/refresh', refresh);
   fastify.post('/logout', logout);
   fastify.get('/me', { preValidation: [authenticate] }, getMe);
+  fastify.post('/phone', { preValidation: [authenticate] }, updatePhoneNumber);
 }

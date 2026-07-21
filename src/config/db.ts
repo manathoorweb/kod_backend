@@ -2,6 +2,10 @@ import pg from 'pg';
 import dotenv from 'dotenv';
 import fs from 'fs';
 import path from 'path';
+import { AsyncLocalStorage } from 'async_hooks';
+
+// AsyncLocalStorage to hold the active request's database client
+export const dbStorage = new AsyncLocalStorage<any>();
 
 // Force loading of the backend .env specifically, regardless of working directory
 const envPath = path.resolve(__dirname, '../../.env');
@@ -23,7 +27,6 @@ const caPath = path.resolve(__dirname, '../../ca.pem');
 const isCloudDb = databaseUrl?.includes('aivencloud.com') || process.env.PGSSLROOTCERT;
 
 // Enable SSL CA config for hosted Aiven or cloud PostgreSQL instances
-// Default rejectUnauthorized to false to prevent self-signed cert chain errors in dev/testing environments
 const rejectUnauthorized = process.env.DB_SSL_REJECT_UNAUTHORIZED === 'true';
 
 const sslConfig = isCloudDb
@@ -57,23 +60,45 @@ console.log('DB_SSL_REJECT_UNAUTHORIZED env value:', process.env.DB_SSL_REJECT_U
 console.log('SSL Connection config:', sslConfig);
 console.log('--------------------------------');
 
-export const pool = new Pool({
+export const poolInstance = new Pool({
   connectionString: cleanConnectionString,
   ssl: sslConfig,
-  max: 20,
+  max: 10,                 // Capped to 10 to respect Aiven connection limits
+  min: 0,                  // Allow scaling down to 0 to prevent issues with idle cloud DB connection drops
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 5000,
+  connectionTimeoutMillis: 20000, // Timeout after 20 seconds to allow for cloud cold starts/network latency
 });
 
-pool.on('connect', (client) => {
+poolInstance.on('connect', (client) => {
   client.on('error', (err) => {
     console.error('Unexpected error on active database client:', err.message || err);
   });
 });
 
-pool.on('error', (err) => {
+poolInstance.on('error', (err) => {
   console.error('Unexpected error on idle database client:', err.message || err);
 });
+
+// Mock pool object to maintain compatibility with controllers/scripts importing "pool"
+export const pool = {
+  async query(text: any, params?: any, callback?: any): Promise<pg.QueryResult<any>> {
+    const client = dbStorage.getStore();
+    if (!client) {
+      return (await poolInstance.query(text, params, callback)) as any;
+    }
+    return client.query(text, params, callback) as any;
+  },
+  
+  // Connect to maintain compatibility with worker.service.ts
+  async connect() {
+    return await poolInstance.connect();
+  },
+
+  // End to maintain compatibility with migration scripts
+  async end() {
+    await poolInstance.end().catch(() => {});
+  }
+};
 
 export const query = (text: string, params?: any[]) => {
   return pool.query(text, params);

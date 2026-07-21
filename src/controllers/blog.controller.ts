@@ -22,23 +22,28 @@ interface AddCommentBody {
 }
 
 /**
- * Get all published blog posts, optionally filtered by category
+ * Get all blog posts, optionally filtered by category, search, and status
  */
 export async function listBlogPosts(request: FastifyRequest, reply: FastifyReply) {
-  const { categorySlug, limit, search } = request.query as ListBlogQuery;
+  const { categorySlug, limit, search, status } = request.query as ListBlogQuery & { status?: string };
   const limitVal = limit ? parseInt(limit, 10) : null;
 
   try {
     let queryText = `
       SELECT p.*, 
              json_build_object('id', c.id, 'name', c.name, 'slug', c.slug) as category,
-             json_build_object('id', a.id, 'name', a.name, 'avatar_url', a.avatar) as author
+             json_build_object('id', a.id, 'name', a.name, 'avatar_url', a.avatar, 'user_id', a.user_id) as author
       FROM blog_posts p
       LEFT JOIN blog_categories c ON p.category_id = c.id
       LEFT JOIN blog_authors a ON p.author_id = a.id
-      WHERE p.status = 'published'
+      WHERE 1=1
     `;
     const queryParams: any[] = [];
+
+    // If status is not 'all', default to 'published'
+    if (status !== 'all') {
+      queryText += ` AND p.status = 'published'`;
+    }
 
     if (categorySlug) {
       queryParams.push(categorySlug);
@@ -75,7 +80,7 @@ export async function getBlogPostBySlug(request: FastifyRequest, reply: FastifyR
     const queryText = `
       SELECT p.*, 
              json_build_object('id', c.id, 'name', c.name, 'slug', c.slug) as category,
-             json_build_object('id', a.id, 'name', a.name, 'avatar_url', a.avatar, 'bio', a.bio) as author
+             json_build_object('id', a.id, 'name', a.name, 'avatar_url', a.avatar, 'bio', a.bio, 'user_id', a.user_id) as author
       FROM blog_posts p
       LEFT JOIN blog_categories c ON p.category_id = c.id
       LEFT JOIN blog_authors a ON p.author_id = a.id
@@ -102,7 +107,7 @@ export async function getFeaturedBlogPost(request: FastifyRequest, reply: Fastif
     const queryText = `
       SELECT p.*, 
              json_build_object('id', c.id, 'name', c.name, 'slug', c.slug) as category,
-             json_build_object('id', a.id, 'name', a.name, 'avatar_url', a.avatar) as author
+             json_build_object('id', a.id, 'name', a.name, 'avatar_url', a.avatar, 'user_id', a.user_id) as author
       FROM blog_posts p
       LEFT JOIN blog_categories c ON p.category_id = c.id
       LEFT JOIN blog_authors a ON p.author_id = a.id
@@ -217,3 +222,162 @@ export async function addCommentToBlogPost(request: FastifyRequest, reply: Fasti
     return reply.status(500).send({ error: 'Failed to submit comment' });
   }
 }
+
+export async function listAuthors(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const authorsRes = await pool.query('SELECT * FROM blog_authors ORDER BY name ASC');
+    return reply.send(authorsRes.rows);
+  } catch (err: any) {
+    request.log.error(err);
+    return reply.status(500).send({ error: 'Failed to retrieve blog authors' });
+  }
+}
+
+interface CreateBlogBody {
+  title: string;
+  slug: string;
+  excerpt?: string;
+  content: string;
+  category_id: string;
+  author_id: string;
+  image?: string;
+  image_alt?: string;
+  featured?: boolean;
+  status: string;
+  read_time?: string;
+  published_at?: string;
+}
+
+export async function createBlogPost(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    if (!request.user) {
+      return reply.status(401).send({ error: 'Unauthorized' });
+    }
+
+    const body = request.body as CreateBlogBody;
+    const {
+      title,
+      slug,
+      excerpt,
+      content,
+      category_id,
+      author_id,
+      image,
+      image_alt,
+      featured,
+      status,
+      read_time,
+      published_at,
+    } = body;
+
+    if (!title || !slug || !content) {
+      return reply.status(400).send({ error: 'Title, slug, and content are required' });
+    }
+
+    const result = await pool.query(
+      `INSERT INTO blog_posts (
+        title, slug, excerpt, content, category_id, author_id, 
+        image, image_alt, featured, status, read_time, published_at, created_at, updated_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW(), NOW())
+      RETURNING *`,
+      [
+        title,
+        slug,
+        excerpt || '',
+        content,
+        category_id || null,
+        author_id || null,
+        image || '',
+        image_alt || '',
+        featured || false,
+        status || 'draft',
+        read_time || '5 min read',
+        published_at ? new Date(published_at) : null,
+      ]
+    );
+
+    return reply.status(201).send({ success: true, data: result.rows[0] });
+  } catch (err: any) {
+    request.log.error(err);
+    return reply.status(500).send({ error: err.message || 'Failed to create blog post' });
+  }
+}
+
+export async function updateBlogPost(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    if (!request.user) {
+      return reply.status(401).send({ error: 'Unauthorized' });
+    }
+
+    const { id } = request.params as IdParams;
+    const body = request.body as Partial<CreateBlogBody>;
+    
+    const checkRes = await pool.query('SELECT * FROM blog_posts WHERE id = $1', [id]);
+    if (checkRes.rows.length === 0) {
+      return reply.status(404).send({ error: 'Blog post not found' });
+    }
+
+    const currentPost = checkRes.rows[0];
+
+    const fieldsToUpdate: string[] = [];
+    const values: any[] = [];
+    let paramIndex = 1;
+
+    const fields = [
+      'title', 'slug', 'excerpt', 'content', 'category_id', 'author_id',
+      'image', 'image_alt', 'featured', 'status', 'read_time', 'published_at'
+    ];
+
+    for (const field of fields) {
+      if (body[field as keyof Partial<CreateBlogBody>] !== undefined) {
+        fieldsToUpdate.push(`${field} = $${paramIndex}`);
+        let val = body[field as keyof Partial<CreateBlogBody>];
+        if (field === 'published_at' && val) {
+          val = new Date(val as string) as any;
+        }
+        values.push(val);
+        paramIndex++;
+      }
+    }
+
+    if (fieldsToUpdate.length === 0) {
+      return reply.send({ success: true, data: currentPost });
+    }
+
+    values.push(id);
+    const updateQuery = `
+      UPDATE blog_posts 
+      SET ${fieldsToUpdate.join(', ')}, updated_at = NOW() 
+      WHERE id = $${paramIndex} 
+      RETURNING *
+    `;
+
+    const result = await pool.query(updateQuery, values);
+    return reply.send({ success: true, data: result.rows[0] });
+  } catch (err: any) {
+    request.log.error(err);
+    return reply.status(500).send({ error: err.message || 'Failed to update blog post' });
+  }
+}
+
+export async function deleteBlogPost(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    if (!request.user) {
+      return reply.status(401).send({ error: 'Unauthorized' });
+    }
+
+    const { id } = request.params as IdParams;
+
+    const checkRes = await pool.query('SELECT * FROM blog_posts WHERE id = $1', [id]);
+    if (checkRes.rows.length === 0) {
+      return reply.status(404).send({ error: 'Blog post not found' });
+    }
+
+    await pool.query('DELETE FROM blog_posts WHERE id = $1', [id]);
+    return reply.send({ success: true });
+  } catch (err: any) {
+    request.log.error(err);
+    return reply.status(500).send({ error: 'Failed to delete blog post' });
+  }
+}
+

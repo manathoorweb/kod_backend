@@ -12,7 +12,16 @@ let isShuttingDown = false;
 async function pollAndProcessJob() {
   if (isShuttingDown) return;
 
-  const client = await pool.connect();
+  let client;
+  try {
+    client = await pool.connect();
+  } catch (err: any) {
+    if (!isShuttingDown) {
+      console.error(`[Worker ${WORKER_ID}] Database connection timeout/failure:`, err.message || err);
+    }
+    return;
+  }
+
   try {
     await client.query('BEGIN');
 
@@ -74,14 +83,22 @@ async function pollAndProcessJob() {
       );
     }
   } catch (err: any) {
-    await client.query('ROLLBACK');
+    try {
+      await client.query('ROLLBACK');
+    } catch (rollbackErr) {
+      console.error(`[Worker ${WORKER_ID}] Transaction rollback failed:`, rollbackErr);
+    }
     if (err.code === '42P01') {
       console.warn(`[Worker ${WORKER_ID}] Database tables not initialized yet. Please run migrations: npm run migrate`);
     } else {
       console.error(`[Worker ${WORKER_ID}] Concurrency error in worker transaction:`, err);
     }
   } finally {
-    client.release();
+    try {
+      client.release();
+    } catch (releaseErr) {
+      console.error(`[Worker ${WORKER_ID}] Failed to release database client:`, releaseErr);
+    }
   }
 }
 

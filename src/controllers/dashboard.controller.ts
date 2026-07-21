@@ -276,3 +276,119 @@ export async function updateRegistrationStatus(
     return reply.status(500).send({ error: 'Failed to update registration status' });
   }
 }
+
+export async function listPendingRegistrations(request: FastifyRequest, reply: FastifyReply) {
+  const user = request.user;
+  if (!user) return reply.status(401).send({ error: 'Unauthorized' });
+
+  try {
+    let queryText = `
+      SELECT be.*, 
+             dp.stage_name, 
+             dp.primary_style, 
+             dp.skill_level, 
+             up.first_name, 
+             up.last_name, 
+             up.email,
+             b.title as battle_title,
+             b.battle_date,
+             b.location as battle_location
+      FROM battle_entries be
+      JOIN dancer_profiles dp ON be.dancer_id = dp.id
+      JOIN user_profiles up ON be.user_id = up.id
+      JOIN battles b ON be.battle_id = b.id
+      WHERE be.entry_status = 'pending'
+    `;
+    const queryParams: any[] = [];
+
+    // If user is not admin, only show entries for battles hosted by this host
+    if (!user.roles.includes('admin')) {
+      queryParams.push(user.userId);
+      queryText += ` AND b.host_id = $${queryParams.length}`;
+    }
+
+    queryText += ' ORDER BY be.submitted_at ASC';
+
+    const entriesRes = await pool.query(queryText, queryParams);
+    return reply.send(entriesRes.rows);
+  } catch (err: any) {
+    request.log.error(err);
+    return reply.status(500).send({ error: 'Failed to retrieve pending registrations' });
+  }
+}
+
+export async function listUsers(request: FastifyRequest, reply: FastifyReply) {
+  const user = request.user;
+  if (!user || !user.roles.includes('admin')) {
+    return reply.status(403).send({ error: 'Forbidden: Admin access required' });
+  }
+  try {
+    const usersRes = await pool.query('SELECT * FROM user_profiles ORDER BY created_at DESC');
+    return reply.send(usersRes.rows);
+  } catch (err: any) {
+    request.log.error(err);
+    return reply.status(500).send({ error: 'Failed to retrieve users list' });
+  }
+}
+
+export async function updateUserRoles(request: FastifyRequest, reply: FastifyReply) {
+  const user = request.user;
+  if (!user || !user.roles.includes('admin')) {
+    return reply.status(403).send({ error: 'Forbidden: Admin access required' });
+  }
+  const { id } = request.params as { id: string };
+  const { roles } = request.body as { roles: string[] };
+
+  if (!roles || !Array.isArray(roles)) {
+    return reply.status(400).send({ error: 'roles array is required' });
+  }
+
+  try {
+    const pgArray = `{${roles.join(',')}}`;
+    const updateRes = await pool.query(
+      'UPDATE user_profiles SET roles = $1 WHERE id = $2 RETURNING *',
+      [pgArray, id]
+    );
+    if (updateRes.rows.length === 0) {
+      return reply.status(404).send({ error: 'User profile not found' });
+    }
+    return reply.send({ message: 'User roles updated successfully', user: updateRes.rows[0] });
+  } catch (err: any) {
+    request.log.error(err);
+    return reply.status(500).send({ error: 'Failed to update user roles' });
+  }
+}
+
+export async function updateUserProfile(request: FastifyRequest, reply: FastifyReply) {
+  const user = request.user;
+  if (!user || !user.roles.includes('admin')) {
+    return reply.status(403).send({ error: 'Forbidden: Admin access required' });
+  }
+  const { id } = request.params as { id: string };
+  const { firstName, lastName, phone, isActive } = request.body as { firstName?: string; lastName?: string; phone?: string; isActive?: boolean };
+
+  try {
+    const updateRes = await pool.query(
+      `UPDATE user_profiles 
+       SET first_name = COALESCE($1, first_name), 
+           last_name = COALESCE($2, last_name), 
+           phone = COALESCE($3, phone),
+           is_active = COALESCE($4, is_active)
+       WHERE id = $5 RETURNING *`,
+      [
+        firstName !== undefined ? firstName : null,
+        lastName !== undefined ? lastName : null,
+        phone !== undefined ? phone : null,
+        isActive !== undefined ? isActive : null,
+        id
+      ]
+    );
+    if (updateRes.rows.length === 0) {
+      return reply.status(404).send({ error: 'User profile not found' });
+    }
+    return reply.send({ message: 'User profile updated successfully', user: updateRes.rows[0] });
+  } catch (err: any) {
+    request.log.error(err);
+    return reply.status(500).send({ error: 'Failed to update user profile' });
+  }
+}

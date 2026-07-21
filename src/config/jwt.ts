@@ -1,15 +1,4 @@
 import jwt from 'jsonwebtoken';
-import dotenv from 'dotenv';
-import path from 'path';
-import fs from 'fs';
-
-// Force loading of the backend .env specifically
-const envPath = path.resolve(__dirname, '../../.env');
-if (fs.existsSync(envPath)) {
-  dotenv.config({ path: envPath });
-} else {
-  dotenv.config();
-}
 
 const ACCESS_SECRET = process.env.JWT_ACCESS_SECRET || 'kod-default-access-secret-key-3029';
 const REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'kod-default-refresh-secret-key-9204';
@@ -31,7 +20,7 @@ export function signAccessToken(payload: JWTPayload): string {
  * Sign a long-lived refresh token
  */
 export function signRefreshToken(payload: JWTPayload): string {
-  return jwt.sign(payload, REFRESH_SECRET, { expiresIn: '7d' });
+  return jwt.sign(payload, REFRESH_SECRET, { expiresIn: '14d' });
 }
 
 /**

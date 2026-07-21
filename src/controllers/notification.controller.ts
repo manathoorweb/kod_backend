@@ -69,7 +69,7 @@ export async function sendAdminPushNotification(
     }
 
     const tokensRes = await pool.query(tokensQuery, queryParams);
-    const tokens = tokensRes.rows.map((row) => row.token);
+    const tokens = tokensRes.rows.map((row: any) => row.token);
 
     if (tokens.length === 0) {
       return reply.status(404).send({ error: 'No active device tokens found for target audience' });
