@@ -130,7 +130,9 @@ if (isNode && !process.env.WRANGLER) {
 
 // Cloudflare Worker export entrypoint
 export default {
-  fetch: app.fetch,
+  fetch(request: any, env: any, ctx: any) {
+    return app.fetch(request, env, ctx);
+  },
   async scheduled(event: any, env: any, ctx: any) {
     ctx.waitUntil((async () => {
       startWorker();
