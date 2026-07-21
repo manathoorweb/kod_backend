@@ -2,7 +2,7 @@ import crypto from 'crypto';
 import { pool } from '../config/db';
 import admin from '../config/firebase';
 
-const WORKER_ID = `worker-${crypto.randomBytes(4).toString('hex')}`;
+let WORKER_ID = 'worker-init';
 let workerTimeout: NodeJS.Timeout | null = null;
 let isShuttingDown = false;
 
@@ -171,6 +171,11 @@ async function processBulkNotification(payload: any) {
  * Start the background worker loop
  */
 export function startWorker() {
+  try {
+    WORKER_ID = `worker-${crypto.randomBytes(4).toString('hex')}`;
+  } catch (err) {
+    WORKER_ID = 'worker-cf';
+  }
   console.log(`[Worker ${WORKER_ID}] Database background job worker loop initialized.`);
   isShuttingDown = false;
 
