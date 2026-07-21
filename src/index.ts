@@ -71,11 +71,9 @@ app.use('*', async (c, next) => {
 
   try {
     await client.connect();
-    let result;
     await dbStorage.run(client, async () => {
-      result = await next();
+      await next();
     });
-    return result;
   } catch (err: any) {
     console.error('[DB Middleware] Database error:', err.message || err);
     return c.json({ error: 'Database connection failed' }, 500);
