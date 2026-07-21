@@ -6,9 +6,13 @@ import fs from 'fs';
 import { Client } from 'pg';
 
 // Force loading of the backend .env specifically
-const envPath = path.resolve(__dirname, '../.env');
-if (fs.existsSync(envPath)) {
-  dotenv.config({ path: envPath });
+if (typeof __dirname !== 'undefined') {
+  const envPath = path.resolve(__dirname, '../.env');
+  if (fs.existsSync(envPath)) {
+    dotenv.config({ path: envPath });
+  } else {
+    dotenv.config();
+  }
 } else {
   dotenv.config();
 }
