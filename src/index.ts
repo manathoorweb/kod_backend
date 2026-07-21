@@ -17,7 +17,7 @@ if (typeof __dirname !== 'undefined') {
   dotenv.config();
 }
 
-import { dbStorage } from './config/db.js';
+import { dbStorage, cleanConnectionString, sslConfig } from './config/db.js';
 import { authRoutes } from './routes/auth.routes.js';
 import { battleRoutes } from './routes/battle.routes.js';
 import { registrationRoutes } from './routes/registration.routes.js';
@@ -58,7 +58,7 @@ app.use('*', cors({
 
 // Request DB Client Middleware using AsyncLocalStorage
 app.use('*', async (c, next) => {
-  const connectionString = c.env?.HYPERDRIVE?.connectionString || process.env.DATABASE_URL;
+  const connectionString = c.env?.HYPERDRIVE?.connectionString || cleanConnectionString;
   if (!connectionString) {
     console.error('[DB Middleware] DATABASE_URL is not defined.');
     return c.json({ error: 'Database connection configuration missing' }, 500);
@@ -66,7 +66,7 @@ app.use('*', async (c, next) => {
 
   const client = new Client({
     connectionString,
-    ssl: connectionString.includes('aivencloud.com') ? { rejectUnauthorized: false } : undefined,
+    ssl: c.env?.HYPERDRIVE?.connectionString ? undefined : sslConfig,
   });
 
   try {
@@ -113,7 +113,7 @@ app.route('/api/checkout', checkoutRoutes);
 
 // Start node server if executing directly in Node.js environment (e.g. npm run dev)
 const isNode = typeof process !== 'undefined' && process.release?.name === 'node';
-if (isNode && !process.env.WRANGLER) {
+if (isNode && !process.env.WRANGLER && typeof (globalThis as any).WebSocketPair === 'undefined') {
   const PORT = parseInt(process.env.PORT || '8787', 10);
   import('@hono/node-server').then(({ serve }) => {
     serve({

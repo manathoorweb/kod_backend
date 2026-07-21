@@ -56,7 +56,7 @@ const isCloudDb = databaseUrl?.includes('aivencloud.com') || process.env.PGSSLRO
 // Enable SSL CA config for hosted Aiven or cloud PostgreSQL instances
 const rejectUnauthorized = process.env.DB_SSL_REJECT_UNAUTHORIZED === 'true';
 
-const sslConfig = isCloudDb
+export const sslConfig = isCloudDb
   ? {
       rejectUnauthorized,
       ca: AIVEN_CA_CERT,
@@ -64,7 +64,7 @@ const sslConfig = isCloudDb
   : undefined;
 
 // Strip SSL parameters from the connection string to prevent pg's parser from overriding our custom SSL config
-let cleanConnectionString = databaseUrl;
+export let cleanConnectionString = databaseUrl;
 if (databaseUrl) {
   try {
     const parsedUrl = new URL(databaseUrl);
