@@ -43,12 +43,15 @@ app.use('*', cors({
       'http://localhost:3001',
       'http://localhost:4028',
       'http://127.0.0.1:3000',
-      'https://apiback.kodindia.com'
+      'https://apiback.kodindia.com',
+      'https://kodindia.com',
+      'https://www.kodindia.com',
+      'https://kod1-winter.vercel.app'
     ];
-    if (allowedOrigins.includes(origin)) {
+    if (origin && (allowedOrigins.includes(origin) || origin.endsWith('.vercel.app'))) {
       return origin;
     }
-    return 'https://apiback.kodindia.com';
+    return 'https://kodindia.com';
   },
   credentials: true,
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
