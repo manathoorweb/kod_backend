@@ -21,20 +21,3 @@ enabled = false
 binding = "HYPERDRIVE"
 id = "a90981ff38384ba18366f282fb7a5662"
 # localConnectionString is configured via CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE in .dev.vars
-[observability]
-enabled = false
-head_sampling_rate = 1
-
-[observability.logs]
-enabled = true
-head_sampling_rate = 1
-persist = true
-invocation_logs = true
-
-[observability.traces]
-enabled = false
-persist = true
-head_sampling_rate = 1
-
-
-

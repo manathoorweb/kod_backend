@@ -6,3 +6,4 @@ dist/
 .env.development
 *.log
 ca.pem
+.dev.vars
