@@ -1,11 +1,14 @@
-import { FastifyInstance } from 'fastify';
+import { Hono } from 'hono';
 import { initiateCheckout, confirmCheckoutMock, verifyCheckoutQR, signTransition, verifyTransition } from '../controllers/checkout.controller.js';
 import { validateInitiateCheckout, validateConfirmCheckout } from '../middleware/checkout.middleware.js';
+import { wrap } from '../utils/hono-adapter.js';
 
-export async function checkoutRoutes(fastify: FastifyInstance) {
-  fastify.post('/initiate', { preValidation: [validateInitiateCheckout] }, initiateCheckout);
-  fastify.post('/mock-success', { preValidation: [validateConfirmCheckout] }, confirmCheckoutMock);
-  fastify.get('/verify-qr', verifyCheckoutQR);
-  fastify.post('/sign-transition', signTransition);
-  fastify.post('/verify-transition', verifyTransition);
-}
+const app = new Hono();
+
+app.post('/initiate', wrap(validateInitiateCheckout), wrap(initiateCheckout));
+app.post('/mock-success', wrap(validateConfirmCheckout), wrap(confirmCheckoutMock));
+app.get('/verify-qr', wrap(verifyCheckoutQR));
+app.post('/sign-transition', wrap(signTransition));
+app.post('/verify-transition', wrap(verifyTransition));
+
+export { app as checkoutRoutes };

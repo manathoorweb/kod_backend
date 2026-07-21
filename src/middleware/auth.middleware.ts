@@ -53,7 +53,7 @@ export function requireRoles(allowedRoles: string[]) {
       return reply.status(401).send({ error: 'Unauthorized: Authentication required' });
     }
     
-    const hasRole = request.user.roles.some((role) => allowedRoles.includes(role));
+    const hasRole = request.user.roles.some((role: string) => allowedRoles.includes(role));
     if (!hasRole) {
       console.warn(`[Auth Middleware] User ${request.user.userId} forbidden. Has roles: [${request.user.roles.join(', ')}]. Required one of: [${allowedRoles.join(', ')}]. IP: ${request.ip}`);
       return reply.status(403).send({ error: 'Forbidden: Insufficient privileges' });

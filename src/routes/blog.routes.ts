@@ -1,4 +1,4 @@
-import { FastifyInstance } from 'fastify';
+import { Hono } from 'hono';
 import { 
   listBlogPosts, 
   getBlogPostBySlug, 
@@ -8,19 +8,18 @@ import {
   listCategories,
   getBlogPostComments,
   addCommentToBlogPost
-} from '../controllers/blog.controller';
+} from '../controllers/blog.controller.js';
+import { wrap } from '../utils/hono-adapter.js';
 
-export async function blogRoutes(fastify: FastifyInstance) {
-  fastify.get('/', listBlogPosts);
-  fastify.get('/featured', getFeaturedBlogPost);
-  fastify.get('/popular', getPopularBlogPosts);
-  fastify.get('/post/:slug', getBlogPostBySlug);
-  fastify.get('/categories', listCategories);
-  
-  // Comments endpoints
-  fastify.get('/:id/comments', getBlogPostComments);
-  fastify.post('/:id/comments', addCommentToBlogPost);
-  
-  // Views tracker
-  fastify.post('/:id/view', incrementPostViews);
-}
+const app = new Hono();
+
+app.get('/', wrap(listBlogPosts));
+app.get('/featured', wrap(getFeaturedBlogPost));
+app.get('/popular', wrap(getPopularBlogPosts));
+app.get('/post/:slug', wrap(getBlogPostBySlug));
+app.get('/categories', wrap(listCategories));
+app.get('/:id/comments', wrap(getBlogPostComments));
+app.post('/:id/comments', wrap(addCommentToBlogPost));
+app.post('/:id/view', wrap(incrementPostViews));
+
+export { app as blogRoutes };

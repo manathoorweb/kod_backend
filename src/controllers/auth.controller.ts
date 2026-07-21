@@ -1,4 +1,13 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
+declare module 'fastify' {
+  interface FastifyRequest {
+    cookies: { [key: string]: string | undefined };
+  }
+  interface FastifyReply {
+    setCookie(name: string, value: string, options?: any): this;
+    clearCookie(name: string, options?: any): this;
+  }
+}
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import { pool } from '../config/db.js';

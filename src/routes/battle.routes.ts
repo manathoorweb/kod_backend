@@ -1,8 +1,11 @@
-import { FastifyInstance } from 'fastify';
-import { listBattles, getBattleById, getBattleCalendar } from '../controllers/battle.controller';
+import { Hono } from 'hono';
+import { listBattles, getBattleById, getBattleCalendar } from '../controllers/battle.controller.js';
+import { wrap } from '../utils/hono-adapter.js';
 
-export async function battleRoutes(fastify: FastifyInstance) {
-  fastify.get('/', listBattles);
-  fastify.get('/calendar', getBattleCalendar);
-  fastify.get('/:id', getBattleById);
-}
+const app = new Hono();
+
+app.get('/', wrap(listBattles));
+app.get('/calendar', wrap(getBattleCalendar));
+app.get('/:id', wrap(getBattleById));
+
+export { app as battleRoutes };

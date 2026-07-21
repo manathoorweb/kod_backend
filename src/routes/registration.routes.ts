@@ -1,4 +1,4 @@
-import { FastifyInstance } from 'fastify';
+import { Hono } from 'hono';
 import { 
   registerForBattle, 
   getMyRegistrations, 
@@ -8,12 +8,15 @@ import {
   registerForProgram 
 } from '../controllers/registration.controller.js';
 import { authenticate } from '../middleware/auth.middleware.js';
+import { wrap } from '../utils/hono-adapter.js';
 
-export async function registrationRoutes(fastify: FastifyInstance) {
-  fastify.post('/', { preValidation: [authenticate] }, registerForBattle);
-  fastify.get('/my', { preValidation: [authenticate] }, getMyRegistrations);
-  fastify.get('/dancer-profile/:userId', getDancerProfile);
-  fastify.get('/dancer-profiles', getAllDancerProfiles);
-  fastify.put('/dancer-profile/:userId', { preValidation: [authenticate] }, updateDancerProfile);
-  fastify.post('/program', { preValidation: [authenticate] }, registerForProgram);
-}
+const app = new Hono();
+
+app.post('/', wrap(authenticate), wrap(registerForBattle));
+app.get('/my', wrap(authenticate), wrap(getMyRegistrations));
+app.get('/dancer-profile/:userId', wrap(getDancerProfile));
+app.get('/dancer-profiles', wrap(getAllDancerProfiles));
+app.put('/dancer-profile/:userId', wrap(authenticate), wrap(updateDancerProfile));
+app.post('/program', wrap(authenticate), wrap(registerForProgram));
+
+export { app as registrationRoutes };

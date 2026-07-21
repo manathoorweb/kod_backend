@@ -197,7 +197,7 @@ export async function confirmCheckoutMock(request: FastifyRequest, reply: Fastif
         `SELECT id FROM battles WHERE program_id = $1`,
         [order.item_id]
       );
-      const battleIds = battlesRes.rows.map((b) => b.id);
+      const battleIds = battlesRes.rows.map((b: any) => b.id);
       if (battleIds.length > 0) {
         console.log(`[Checkout Controller] [${orderId}] Updating battle entries for battles: ${battleIds.join(', ')}`);
         await client.query(
@@ -322,7 +322,7 @@ export async function verifyCheckoutQR(request: FastifyRequest, reply: FastifyRe
 
     // Step C: Battle Entries
     if (battleEntries.length > 0) {
-      battleEntries.forEach(entry => {
+      battleEntries.forEach((entry: any) => {
         steps.push({
           name: 'Battle Registration Submitted',
           timestamp: entry.submitted_at,
@@ -334,7 +334,7 @@ export async function verifyCheckoutQR(request: FastifyRequest, reply: FastifyRe
 
     // Step D: Workshop Bookings
     if (workshopBookings.length > 0) {
-      workshopBookings.forEach(booking => {
+      workshopBookings.forEach((booking: any) => {
         steps.push({
           name: 'Workshop Seat Booked',
           timestamp: booking.created_at,
@@ -346,7 +346,7 @@ export async function verifyCheckoutQR(request: FastifyRequest, reply: FastifyRe
 
     // Step E: Spectator Ticket Sales
     if (ticketOrders.length > 0) {
-      ticketOrders.forEach(ticket => {
+      ticketOrders.forEach((ticket: any) => {
         steps.push({
           name: 'Spectator Ticket Allocated',
           timestamp: ticket.created_at,

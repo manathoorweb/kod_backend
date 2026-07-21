@@ -1,4 +1,4 @@
-import { FastifyInstance } from 'fastify';
+import { Hono } from 'hono';
 import {
   saveIncompleteOrder,
   getIncompleteOrder,
@@ -6,11 +6,14 @@ import {
   getIncompleteOrdersList,
   getIncompleteOrdersByUser
 } from '../controllers/incomplete-orders.controller.js';
+import { wrap } from '../utils/hono-adapter.js';
 
-export async function incompleteOrdersRoutes(fastify: FastifyInstance) {
-  fastify.post('/', saveIncompleteOrder);
-  fastify.get('/', getIncompleteOrdersList);
-  fastify.get('/user/:userId', getIncompleteOrdersByUser);
-  fastify.get('/:id', getIncompleteOrder);
-  fastify.delete('/:id', deleteIncompleteOrder);
-}
+const app = new Hono();
+
+app.post('/', wrap(saveIncompleteOrder));
+app.get('/', wrap(getIncompleteOrdersList));
+app.get('/user/:userId', wrap(getIncompleteOrdersByUser));
+app.get('/:id', wrap(getIncompleteOrder));
+app.delete('/:id', wrap(deleteIncompleteOrder));
+
+export { app as incompleteOrdersRoutes };

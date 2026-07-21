@@ -10,12 +10,11 @@
     "migrate": "tsx src/scripts/run-migrations.ts"
   },
   "dependencies": {
-    "@fastify/cookie": "^9.3.1",
-    "@fastify/cors": "^9.0.1",
+    "@hono/node-server": "^2.0.11",
     "bcryptjs": "^2.4.3",
     "dotenv": "^16.4.5",
-    "fastify": "^4.28.1",
     "firebase-admin": "^12.1.0",
+    "hono": "^4.5.0",
     "jsonwebtoken": "^9.0.2",
     "pg": "^8.12.0"
   },
@@ -24,6 +23,7 @@
     "@types/jsonwebtoken": "^9.0.6",
     "@types/node": "^20.14.9",
     "@types/pg": "^8.11.6",
+    "fastify": "^5.10.0",
     "nodemon": "^3.1.4",
     "tsx": "^4.15.7",
     "typescript": "^5.5.2"

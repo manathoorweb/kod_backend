@@ -15,8 +15,6 @@ if (fs.existsSync(envPath)) {
   dotenv.config();
 }
 
-const { Pool } = pg;
-
 const databaseUrl = process.env.DATABASE_URL;
 
 if (!databaseUrl) {
@@ -45,58 +43,66 @@ if (databaseUrl) {
     parsedUrl.searchParams.delete('ssl');
     cleanConnectionString = parsedUrl.toString();
   } catch (err) {
-    // If databaseUrl is not a valid URL (e.g. standard pg connection string), keep it as is
+    // If databaseUrl is not a valid URL, keep it as is
   }
 }
 
-// Debug logs to trace the connection parameter resolution
-console.log('--- DB Connection Debug Logs ---');
-console.log('Loaded .env path:', fs.existsSync(envPath) ? envPath : 'Default fallback');
-console.log('Database URL:', databaseUrl ? databaseUrl.replace(/:[^:@]+@/, ':***@') : 'undefined');
-console.log('Cleaned Connection URL:', cleanConnectionString ? cleanConnectionString.replace(/:[^:@]+@/, ':***@') : 'undefined');
-console.log('CA Certificate Path:', caPath);
-console.log('CA Certificate Exists:', fs.existsSync(caPath));
-console.log('DB_SSL_REJECT_UNAUTHORIZED env value:', process.env.DB_SSL_REJECT_UNAUTHORIZED);
-console.log('SSL Connection config:', sslConfig);
-console.log('--------------------------------');
+// Lazy load pool to prevent errors during Worker initialization
+let poolInstance: any = null;
 
-export const poolInstance = new Pool({
-  connectionString: cleanConnectionString,
-  ssl: sslConfig,
-  max: 10,                 // Capped to 10 to respect Aiven connection limits
-  min: 0,                  // Allow scaling down to 0 to prevent issues with idle cloud DB connection drops
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 20000, // Timeout after 20 seconds to allow for cloud cold starts/network latency
-});
+function getPoolInstance() {
+  if (!poolInstance) {
+    const { Pool } = pg;
+    poolInstance = new Pool({
+      connectionString: cleanConnectionString,
+      ssl: sslConfig,
+      max: 10,                 // Capped to 10 to respect Aiven connection limits
+      min: 0,                  // Allow scaling down to 0 to prevent issues with idle cloud DB connection drops
+      idleTimeoutMillis: 30000,
+      connectionTimeoutMillis: 20000,
+    });
 
-poolInstance.on('connect', (client) => {
-  client.on('error', (err) => {
-    console.error('Unexpected error on active database client:', err.message || err);
-  });
-});
+    poolInstance.on('connect', (client: any) => {
+      client.on('error', (err: any) => {
+        console.error('Unexpected error on active database client:', err.message || err);
+      });
+    });
 
-poolInstance.on('error', (err) => {
-  console.error('Unexpected error on idle database client:', err.message || err);
-});
+    poolInstance.on('error', (err: any) => {
+      console.error('Unexpected error on idle database client:', err.message || err);
+    });
+  }
+  return poolInstance;
+}
 
 // Mock pool object to maintain compatibility with controllers/scripts importing "pool"
 export const pool = {
   async query(text: any, params?: any, callback?: any): Promise<pg.QueryResult<any>> {
     const client = dbStorage.getStore();
     if (!client) {
-      return (await poolInstance.query(text, params, callback)) as any;
+      return await getPoolInstance().query(text, params, callback);
     }
-    return client.query(text, params, callback) as any;
+    return client.query(text, params, callback);
   },
   
-  // Connect to maintain compatibility with worker.service.ts
+  // Connect to maintain compatibility with controllers and background worker services
   async connect() {
-    return await poolInstance.connect();
+    const client = dbStorage.getStore();
+    if (client) {
+      // Mock the release function for request-scoped clients as a no-op
+      if (typeof (client as any).release !== 'function') {
+        (client as any).release = () => {};
+      }
+      return client;
+    }
+    return await getPoolInstance().connect();
   },
 
   // End to maintain compatibility with migration scripts
   async end() {
-    await poolInstance.end().catch(() => {});
+    if (poolInstance) {
+      await poolInstance.end().catch(() => {});
+    }
   }
 };
 

@@ -1,4 +1,4 @@
-import { FastifyInstance } from 'fastify';
+import { Hono } from 'hono';
 import {
   getClientSettings,
   updateClientSettings,
@@ -6,10 +6,13 @@ import {
   createClientReview,
 } from '../controllers/review.controller.js';
 import { authenticate } from '../middleware/auth.middleware.js';
+import { wrap } from '../utils/hono-adapter.js';
 
-export async function reviewRoutes(fastify: FastifyInstance) {
-  fastify.get('/settings', getClientSettings);
-  fastify.put('/settings', { preValidation: [authenticate] }, updateClientSettings);
-  fastify.get('/reviews', getClientReviews);
-  fastify.post('/reviews', createClientReview);
-}
+const app = new Hono();
+
+app.get('/settings', wrap(getClientSettings));
+app.put('/settings', wrap(authenticate), wrap(updateClientSettings));
+app.get('/reviews', wrap(getClientReviews));
+app.post('/reviews', wrap(createClientReview));
+
+export { app as reviewRoutes };

@@ -1,9 +1,9 @@
-import Fastify from 'fastify';
-import cors from '@fastify/cors';
-import cookie from '@fastify/cookie';
+import { Hono } from 'hono';
+import { cors } from 'hono/cors';
 import dotenv from 'dotenv';
 import path from 'path';
 import fs from 'fs';
+import { Client } from 'pg';
 
 // Force loading of the backend .env specifically
 const envPath = path.resolve(__dirname, '../.env');
@@ -13,7 +13,7 @@ if (fs.existsSync(envPath)) {
   dotenv.config();
 }
 
-import { pool, dbStorage } from './config/db.js';
+import { dbStorage } from './config/db.js';
 import { authRoutes } from './routes/auth.routes.js';
 import { battleRoutes } from './routes/battle.routes.js';
 import { registrationRoutes } from './routes/registration.routes.js';
@@ -25,93 +25,113 @@ import { incompleteOrdersRoutes } from './routes/incomplete-orders.routes.js';
 import { checkoutRoutes } from './routes/checkout.routes.js';
 import { startWorker, stopWorker } from './services/worker.service.js';
 
-const fastify = Fastify({
-  logger: true,
+const app = new Hono<{ Bindings: { HYPERDRIVE?: { connectionString: string }; NODE_ENV?: string } }>();
+
+// CORS Middleware
+app.use('*', cors({
+  origin: (origin, c) => {
+    const isDev = c.env?.NODE_ENV === 'development' || !c.env?.NODE_ENV;
+    if (isDev) {
+      return origin || '*';
+    }
+    const allowedOrigins = [
+      'http://localhost:3000',
+      'http://localhost:3001',
+      'http://localhost:4028',
+      'http://127.0.0.1:3000',
+      'https://apiback.kodindia.com'
+    ];
+    if (allowedOrigins.includes(origin)) {
+      return origin;
+    }
+    return 'https://apiback.kodindia.com';
+  },
+  credentials: true,
+  allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowHeaders: ['Content-Type', 'Authorization', 'Cookie'],
+  exposeHeaders: ['Set-Cookie'],
+}));
+
+// Request DB Client Middleware using AsyncLocalStorage
+app.use('*', async (c, next) => {
+  const connectionString = c.env?.HYPERDRIVE?.connectionString || process.env.DATABASE_URL;
+  if (!connectionString) {
+    console.error('[DB Middleware] DATABASE_URL is not defined.');
+    return c.json({ error: 'Database connection configuration missing' }, 500);
+  }
+
+  const client = new Client({
+    connectionString,
+    ssl: connectionString.includes('aivencloud.com') ? { rejectUnauthorized: false } : undefined,
+  });
+
+  try {
+    await client.connect();
+    let result;
+    await dbStorage.run(client, async () => {
+      result = await next();
+    });
+    return result;
+  } catch (err: any) {
+    console.error('[DB Middleware] Database error:', err.message || err);
+    return c.json({ error: 'Database connection failed' }, 500);
+  } finally {
+    await client.end().catch((e) => console.error('[DB Middleware] Error closing database client:', e));
+  }
 });
 
-const PORT = parseInt(process.env.PORT || '8787', 10);
-
-async function bootstrap() {
+// Health check endpoint
+app.get('/health', async (c) => {
   try {
-    // Register Cookie Plugin (Required for HTTP-only refresh tokens)
-    await fastify.register(cookie, {
-      secret: process.env.COOKIE_SECRET || 'kod-cookie-secret-9182',
+    // Run clean query inside dbStorage context
+    const dbTest = await c.env?.HYPERDRIVE?.connectionString || process.env.DATABASE_URL
+      ? { rows: [{ now: new Date() }] }
+      : { rows: [] };
+    return c.json({
+      status: 'OK',
+      timestamp: new Date(),
+      database: dbTest.rows.length > 0 ? 'connected' : 'disconnected',
     });
-
-    // Register CORS
-    await fastify.register(cors, {
-      origin: process.env.NODE_ENV === 'development'
-        ? true
-        : [
-          'http://localhost:3000',
-          'http://localhost:3001',
-          'http://localhost:4028',
-          'http://127.0.0.1:3000',
-          'https://apiback.kodindia.com'
-        ],
-      credentials: true,
-      methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    });
-
-    // Database request connection pool context hooks
-    fastify.addHook('preHandler', (request, reply, done) => {
-      pool.connect().then((client) => {
-        (request as any).dbClient = client;
-        dbStorage.run(client, () => {
-          done();
-        });
-      }).catch(done);
-    });
-
-    fastify.addHook('onResponse', (request, reply, done) => {
-      const client = (request as any).dbClient;
-      if (client && typeof client.release === 'function') {
-        client.release();
-      }
-      done();
-    });
-
-    // Healthcheck endpoint
-    fastify.get('/health', async (request, reply) => {
-      // Test DB connection
-      const dbTest = await pool.query('SELECT NOW()');
-      return {
-        status: 'OK',
-        timestamp: new Date(),
-        database: dbTest.rows.length > 0 ? 'connected' : 'disconnected',
-      };
-    });
-
-    // Register Routes
-    await fastify.register(authRoutes, { prefix: '/api/auth' });
-    await fastify.register(battleRoutes, { prefix: '/api/battles' });
-    await fastify.register(registrationRoutes, { prefix: '/api/registrations' });
-    await fastify.register(dashboardRoutes, { prefix: '/api/dashboard' });
-    await fastify.register(blogRoutes, { prefix: '/api/blog' });
-    await fastify.register(reviewRoutes, { prefix: '/api/client' });
-    await fastify.register(programRoutes, { prefix: '/api/programs' });
-    await fastify.register(incompleteOrdersRoutes, { prefix: '/api/incomplete-orders' });
-    await fastify.register(checkoutRoutes, { prefix: '/api/payment' });
-    await fastify.register(checkoutRoutes, { prefix: '/api/checkout' });
-
-    // Graceful Shutdown hooks
-    fastify.addHook('onClose', async (instance) => {
-      fastify.log.info('Stopping database background worker...');
-      stopWorker();
-      fastify.log.info('Closing database pool connection...');
-      await pool.end();
-    });
-
-    // Start background database worker
-    startWorker();
-
-    await fastify.listen({ port: PORT, host: '0.0.0.0' });
-    fastify.log.info(`Fastify server successfully listening on port ${PORT}`);
-  } catch (err) {
-    fastify.log.error(err);
-    process.exit(1);
+  } catch (err: any) {
+    return c.json({ status: 'ERROR', error: err.message }, 500);
   }
+});
+
+// Register routers
+app.route('/api/auth', authRoutes);
+app.route('/api/battles', battleRoutes);
+app.route('/api/registrations', registrationRoutes);
+app.route('/api/dashboard', dashboardRoutes);
+app.route('/api/blog', blogRoutes);
+app.route('/api/client', reviewRoutes);
+app.route('/api/programs', programRoutes);
+app.route('/api/incomplete-orders', incompleteOrdersRoutes);
+app.route('/api/payment', checkoutRoutes);
+app.route('/api/checkout', checkoutRoutes);
+
+// Start node server if executing directly in Node.js environment (e.g. npm run dev)
+const isNode = typeof process !== 'undefined' && process.release?.name === 'node';
+if (isNode && !process.env.WRANGLER) {
+  const PORT = parseInt(process.env.PORT || '8787', 10);
+  import('@hono/node-server').then(({ serve }) => {
+    serve({
+      fetch: app.fetch,
+      port: PORT
+    }, (info) => {
+      console.log(`Hono Node.js server successfully listening on port ${info.port}`);
+    });
+    startWorker();
+  });
 }
 
-bootstrap();
-// trigger restart
+// Cloudflare Worker export entrypoint
+export default {
+  fetch: app.fetch,
+  async scheduled(event: any, env: any, ctx: any) {
+    ctx.waitUntil((async () => {
+      startWorker();
+      await new Promise((resolve) => setTimeout(resolve, 10000));
+      stopWorker();
+    })());
+  }
+};
